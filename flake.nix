@@ -25,14 +25,14 @@
 
         build = { buildArgs ? [ ] }:
           installable: ''
-            echo -- '--- :hammer: Realise the derivation'
+            echo '--- :hammer: Realise the derivation'
             nix build ${escapeShellArg installable} -L -v ${
               concatMapStringsSep " " escapeShellArg buildArgs
             }
           '';
 
         sign = keys: installable: ''
-          echo -- '--- :black_nib: Sign the paths
+          echo '--- :black_nib: Sign the paths
           ${map (key:
             "nix store sign -k ${escapeShellArg key} -r ${
               escapeShellArg installable
@@ -40,7 +40,7 @@
         '';
 
         push = caches: installable: ''
-          echo -- '--- :arrow_up: Push to binary cache'
+          echo '--- :arrow_up: Push to binary cache'
           ${map (cache:
             "nix copy --to ${escapeShellArg cache} ${
               escapeShellArg installable
@@ -59,7 +59,7 @@
           { signWithKeys ? [ ], pushToBinaryCaches ? [ ], buildArgs ? [ ] }:
           installable:
           let
-            push = [ "echo -- '--- :arrow_up: Push to Cachix'" ]
+            push = [ "echo '--- :arrow_up: Push to Cachix'" ]
               ++ map (cache: "cachix push ${escapeShellArg cache} ./result")
               pushToBinaryCaches;
           in concatStringsSep "\n"
