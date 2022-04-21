@@ -72,7 +72,8 @@
             escapeShellArg command
           }";
 
-        flakeSteps' = { mkBuildCommands, systems, commonExtraStepConfig ? { } }:
+        flakeSteps' = { mkBuildCommands, signWithKeys, pushToBinaryCaches
+          , buildArgs, systems, commonExtraStepConfig ? { } }:
           flake:
           let
             attrsToList = set:
@@ -84,14 +85,20 @@
               map f (concatMap attrsToList
                 (attrValues (getAttrs' systems buildables)));
 
-            buildOutput = labelF: pkgF: output:
+            buildOutput = f: output:
               mapOverBuildables (pkg:
-                ({
-                  commands = mkBuildCommands (pkgF pkg.value).drvPath;
-                  label = labelF pkg;
+                let v = f pkg;
+                in ({
+                  commands = mkBuildCommands {
+                    signWithKeys = if v.signPush then signWithKeys else [ ];
+                    pushToBinaryCaches =
+                      if v.signPush then pushToBinaryCaches else [ ];
+                    inherit buildArgs;
+                  } (v.pkg).drvPath;
+                  label = v.label;
                   artifact_paths = pkg.value.passthru.artifacts or [ ];
                 }) // {
-                  __drv = pkgF pkg.value;
+                  __drv = v.pkg;
                 } // commonExtraStepConfig) output;
 
             getCompatibleOutput = name: oldDefaultName:
@@ -102,24 +109,30 @@
 
             systemMsg = optionalString (length systems > 1);
 
-            packages = buildOutput (pkg:
-              ":nix: Build ${
-                descriptionOrName (pkg.value.meta.description or null) pkg.name
-              }${systemMsg " for ${pkg.value.system}"}") id
-              (getCompatibleOutput "packages" "defaultPackage");
+            packages = buildOutput ({ name, value }: {
+              label = ":nix: Build ${
+                  descriptionOrName (value.meta.description or null)
+                  (if name == "default" then value.name else name)
+                }${systemMsg " for ${value.system}"}";
+              pkg = value;
+              signPush = value.passthru.cache or true;
+            }) (getCompatibleOutput "packages" "defaultPackage");
 
-            checks = buildOutput (check:
-              ":nix: Check ${
-                descriptionOrName (check.value.meta.checkDescription or null)
-                check.name
-              }${systemMsg " on ${check.value.system}"}") id
-              flake.checks or { };
+            checks = buildOutput ({ name, value }: {
+              label = ":nix: Check ${
+                  descriptionOrName (value.meta.checkDescription or null) name
+                }${systemMsg " on ${value.system}"}";
+              pkg = value;
+              signPush = false;
+            }) flake.checks or { };
 
-            devShells = buildOutput (shell:
-              ":nix: Build ${shell.name} development environment${
-                systemMsg " for ${shell.value.system}"
-              }") (pkg: pkg.inputDerivation)
-              (getCompatibleOutput "devShells" "devShell");
+            devShells = buildOutput ({ name, value }: {
+              label = ":nix: Build ${name} development environment${
+                  systemMsg " for ${value.system}"
+                }";
+              pkg = value.inputDerivation;
+              signPush = true;
+            }) (getCompatibleOutput "devShells" "devShell");
 
             # TODO: apps?
             uniqueSteps = uniqListExt {
@@ -132,20 +145,19 @@
           , pushToBinaryCaches ? [ ], agents ? [ ], buildArgs ? [ ]
           , commonExtraStepConfig ? { } }:
           flakeSteps' {
-            mkBuildCommands = buildSignPush {
-              inherit signWithKeys pushToBinaryCaches buildArgs;
-            };
-            inherit systems commonExtraStepConfig;
+            mkBuildCommands = buildSignPush;
+
+            inherit signWithKeys pushToBinaryCaches buildArgs systems
+              commonExtraStepConfig;
           };
 
         flakeStepsCachix = { systems ? [ "x86_64-linux" ], signWithKeys ? [ ]
           , pushToBinaryCaches ? [ ], agents ? [ ], buildArgs ? [ ]
           , commonExtraStepConfig ? { } }:
           flakeSteps' {
-            mkBuildCommands = buildPushCachix {
-              inherit pushToBinaryCaches signWithKeys buildArgs;
-            };
-            inherit systems commonExtraStepConfig;
+            mkBuildCommands = buildPushCachix;
+            inherit pushToBinaryCaches signWithKeys buildArgs systems
+              commonExtraStepConfig;
           };
       };
     };
