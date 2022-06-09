@@ -31,28 +31,24 @@
             }
           '';
 
-        sign = keys: installable: ''
-          echo '--- :black_nib: Sign the paths
-          ${map (key:
+        sign = keys: installable:
+          [ "echo '--- :black_nib: Sign the paths'" ] ++ map (key:
             "nix store sign -k ${escapeShellArg key} -r ${
               escapeShellArg installable
-            }") keys}
-        '';
+            }") keys;
 
-        push = caches: installable: ''
-          echo '--- :arrow_up: Push to binary cache'
-          ${map (cache:
+        push = caches: installable:
+          [ "echo '--- :arrow_up: Push to binary cache'" ] ++ map (cache:
             "nix copy --to ${escapeShellArg cache} ${
               escapeShellArg installable
-            }") caches}
-        '';
+            }") caches;
 
         buildSignPush =
           { buildArgs ? [ ], signWithKeys ? [ ], pushToBinaryCaches ? [ ] }:
           installable:
           concatStringsSep "\n" ([ (build { inherit buildArgs; } installable) ]
-            ++ optional (signWithKeys != [ ]) (sign signWithKeys installable)
-            ++ optional (pushToBinaryCaches != [ ])
+            ++ optionals (signWithKeys != [ ]) (sign signWithKeys installable)
+            ++ optionals (pushToBinaryCaches != [ ])
             (push pushToBinaryCaches installable));
 
         buildPushCachix =
