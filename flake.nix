@@ -23,12 +23,18 @@
         # [Step] -> JSON
         mkPipeline = steps: builtins.toJSON { inherit steps; };
 
-        build = { buildArgs ? [ ] }:
-          installable: ''
+        build = { buildArgs ? [ ], reproducePath ? null, reproduceRepo ? null }:
+          installable:
+          ''
             echo '--- :hammer: Realise the derivation'
             nix build ${escapeShellArg installable} -L -v ${
               concatMapStringsSep " " escapeShellArg buildArgs
             }
+          '' + lib.optionalString
+          (!isNull reproducePath && !isNull reproduceRepo) ''
+            echo -e "To reproduce this result, run\n\e[1mgit checkout $BUILDKITE_COMMIT; nix build ${reproduceRepo}#${
+              builtins.concatStringsSep "." reproducePath
+            }\e[0m"
           '';
 
         sign = keys: installable:
@@ -43,24 +49,28 @@
               escapeShellArg installable
             }") caches;
 
-        buildSignPush =
-          { buildArgs ? [ ], signWithKeys ? [ ], pushToBinaryCaches ? [ ] }:
+        buildSignPush = { buildArgs ? [ ], signWithKeys ? [ ]
+          , pushToBinaryCaches ? [ ], reproducePath ? null, reproduceRepo ? null
+          }:
           installable:
-          concatStringsSep "\n" ([ (build { inherit buildArgs; } installable) ]
-            ++ optionals (signWithKeys != [ ]) (sign signWithKeys installable)
+          concatStringsSep "\n" ([
+            (build { inherit buildArgs reproducePath reproduceRepo; }
+              installable)
+          ] ++ optionals (signWithKeys != [ ]) (sign signWithKeys installable)
             ++ optionals (pushToBinaryCaches != [ ])
             (push pushToBinaryCaches installable));
 
-        buildPushCachix =
-          { signWithKeys ? [ ], pushToBinaryCaches ? [ ], buildArgs ? [ ] }:
+        buildPushCachix = { signWithKeys ? [ ], pushToBinaryCaches ? [ ]
+          , buildArgs ? [ ], reproducePath ? null, reproduceRepo ? null }:
           installable:
           let
             push = [ "echo '--- :arrow_up: Push to Cachix'" ]
               ++ map (cache: "cachix push ${escapeShellArg cache} ./result")
               pushToBinaryCaches;
-          in concatStringsSep "\n"
-          ([ (build { inherit buildArgs; } installable) ]
-            ++ optional (signWithKeys != [ ]) (sign signWithKeys installable)
+          in concatStringsSep "\n" ([
+            (build { inherit buildArgs reproducePath reproduceRepo; }
+              installable)
+          ] ++ optional (signWithKeys != [ ]) (sign signWithKeys installable)
             ++ optionals (pushToBinaryCaches != [ ]) push);
 
         runInEnv = environment: command:
@@ -69,7 +79,8 @@
           }";
 
         flakeSteps' = { mkBuildCommands, signWithKeys, pushToBinaryCaches
-          , buildArgs, systems, commonExtraStepConfig ? { } }:
+          , buildArgs, systems, commonExtraStepConfig ? { }
+          , reproduceRepo ? null }:
           flake:
           let
             attrsToList = set:
@@ -90,18 +101,32 @@
                     pushToBinaryCaches =
                       if v.signPush then pushToBinaryCaches else [ ];
                     inherit buildArgs;
+                    reproducePath = v.pkg.meta.reproducePath or null;
+                    inherit reproduceRepo;
                   } (v.pkg).drvPath;
                   label = v.label;
                   artifact_paths = pkg.value.passthru.artifacts or [ ];
+                  key = builtins.concatStringsSep "_"
+                    v.pkg.meta.reproducePath or [ v.pkg.name ];
                 }) // {
                   __drv = v.pkg;
                 } // commonExtraStepConfig) output;
 
+            injectAttrPath = ap:
+              mapAttrs (system:
+                mapAttrs (name: value:
+                  lib.recursiveUpdate value {
+                    meta.reproducePath = ap ++ [ system name ];
+                  }));
+
             getCompatibleOutput = name: oldDefaultName:
-              (flake.${name} or { })
-              // optionalAttrs (flake ? ${oldDefaultName}) {
-                default = flake.${oldDefaultName};
-              };
+              lib.recursiveUpdate
+              (injectAttrPath [ name ] (flake.${name} or { })) (mapAttrs
+                (system: pkg: {
+                  default = lib.recursiveUpdate pkg {
+                    meta.reproducePath = [ oldDefaultName system ];
+                  };
+                }) (flake.${oldDefaultName} or { }));
 
             systemMsg = optionalString (length systems > 1);
 
@@ -120,13 +145,13 @@
                 }${systemMsg " on ${value.system}"}";
               pkg = value;
               signPush = false;
-            }) flake.checks or { };
+            }) (injectAttrPath [ "checks" ] flake.checks or { });
 
             devShells = buildOutput ({ name, value }: {
               label = ":nix: Build ${name} development environment${
                   systemMsg " for ${value.system}"
                 }";
-              pkg = value.inputDerivation;
+              pkg = value.inputDerivation // { inherit (value) meta; };
               signPush = true;
             }) (getCompatibleOutput "devShells" "devShell");
 
@@ -137,23 +162,23 @@
             };
           in map (set: removeAttrs set [ "__drv" ]) uniqueSteps;
 
-        flakeSteps = { systems ? [ "x86_64-linux" ], signWithKeys ? [ ]
-          , pushToBinaryCaches ? [ ], agents ? [ ], buildArgs ? [ ]
-          , commonExtraStepConfig ? { } }:
+        flakeSteps = { systems ? [ "x86_64-linux" ], reproduceRepo ? null
+          , signWithKeys ? [ ], pushToBinaryCaches ? [ ], agents ? [ ]
+          , buildArgs ? [ ], commonExtraStepConfig ? { } }:
           flakeSteps' {
             mkBuildCommands = buildSignPush;
 
-            inherit signWithKeys pushToBinaryCaches buildArgs systems
-              commonExtraStepConfig;
+            inherit reproduceRepo signWithKeys pushToBinaryCaches buildArgs
+              systems commonExtraStepConfig;
           };
 
-        flakeStepsCachix = { systems ? [ "x86_64-linux" ], signWithKeys ? [ ]
-          , pushToBinaryCaches ? [ ], agents ? [ ], buildArgs ? [ ]
-          , commonExtraStepConfig ? { } }:
+        flakeStepsCachix = { systems ? [ "x86_64-linux" ], reproduceRepo ? "."
+          , signWithKeys ? [ ], pushToBinaryCaches ? [ ], agents ? [ ]
+          , buildArgs ? [ ], commonExtraStepConfig ? { } }:
           flakeSteps' {
             mkBuildCommands = buildPushCachix;
-            inherit pushToBinaryCaches signWithKeys buildArgs systems
-              commonExtraStepConfig;
+            inherit reproduceRepo pushToBinaryCaches signWithKeys buildArgs
+              systems commonExtraStepConfig;
           };
       };
     };
