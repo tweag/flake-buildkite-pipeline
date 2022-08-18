@@ -1,0 +1,9 @@
+name: Cast Idea
+description: Write down your idea for a NixCast.
+title: "[Idea]: "
+labels: ["idea"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank your for taking the time to give your idea for a NixCast!
