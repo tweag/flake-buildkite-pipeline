@@ -1,11 +1,68 @@
-# ❄️+🪁 Nix BuildKite Pipeline Generator
+# ❄️+🪁 Generate Buildkite Pipelines from Nix Flakes
 
-This repository provides a Nix library that'll generate BuildKite pipelines that
-take advantage of Nix's unique features. Some of its unique features are as follows.
+This repository contains some functions that'll transform a Nix flake into a
+valid BuildKite Pipeline, represented in JSON.
 
 ## 🧑‍💻 Usage
 
-## 👋 Hello from the Tweag Team
+We'll take a look at a minimal example flake that “builds” a packages named
+`hello`, and “checks” that the output of running the `hello` package matches
+`Hello, world!`. Here is that flake.
+
+```nix
+{
+  description = "flake-buildkite-pipeline example";
+
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-22.05";
+    flake-buildkite-pipeline.url = "github:tweag/flake-buildkite-pipeline";
+  };
+
+  outputs = { self, nixpkgs, flake-buildkite-pipeline }:
+    let
+      system = "x86_64-linux";
+      pkgs = nixpkgs.legacyPackages.${system};
+    in {
+      packages.${system}.hello = pkgs.hello;
+
+      checks.${system}.demoCheck = pkgs.runCommandNoCC "demoCheck" {
+        meta.checkDescription = "demoCheck";
+      } ''
+        set -o verbose
+        want='Hello, world!'
+        got="$(${self.packages.${system}.hello}/bin/hello)"
+        [ "$want" == "$got" ]
+        touch $out
+      '';
+
+      pipelines.buildkite.steps = flake-buildkite-pipeline.lib.flakeSteps {
+        commonExtraStepConfig = {
+          agents = [ "nix" ];
+          plugins = [{ "thedyrt/skip-checkout#v0.1.1" = null; }];
+        };
+      } self;
+    };
+}
+```
+
+Apart from the `pipelines` attribute, everything looks like a normal flake, and
+we can still use it a such. Try running `nix flake check`, and you can observe
+that it builds the `hello` package, and runs the singular check.
+
+Now, to get the actual BuildKite `pipeline.json`, run `nix eval --json
+.#pipelines.buildkite`. This will produce a valid BuildKite pipeline, the
+`--json` flag will print it out as JSON instead of Nix. You can use this in
+combination with the BuildKite Agent CLI tool to upload the pipeline, e.g.
+
+```shell
+nix eval "git+file://$(pwd)?submodules=1"#pipeline.buildkite --json | buildkite-agent pipeline upload
+```
+
+### Functions reference
+
+`flakeSteps` 
+
+## 👋 Hello from the Tweag team
 
 [![Scale your engineering power][banner]][website]
 
