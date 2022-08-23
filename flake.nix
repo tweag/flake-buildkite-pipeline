@@ -20,9 +20,18 @@
           else
             "${description} (${name})";
       in rec {
-        # [Step] -> JSON
+        /* Generate a JSON representation from a Steps attribute set.
+
+           Type:
+             mkPipeline :: Steps -> JSON
+        */
         mkPipeline = steps: builtins.toJSON { inherit steps; };
 
+        /* Generate a _build_ step that will run `nix build ...`.
+
+           Type:
+             build :: BuildConfigSet -> Installable -> Script
+        */
         build = { buildArgs ? [ ], reproducePath ? null, reproduceRepo ? null }:
           installable:
           ''
@@ -37,12 +46,22 @@
             }\e[0m"
           '';
 
+        /* Generate a _sign_ step that will sign a store path with `nix store sign ...`.
+
+           Type:
+             sign :: SigningKey -> Installable -> Script
+        */
         sign = keys: installable:
           [ "echo '--- :black_nib: Sign the paths'" ] ++ map (key:
             "nix store sign -k ${escapeShellArg key} -r ${
               escapeShellArg installable
             }") keys;
 
+        /* Generate a _push_ step that will push a store path to binary caches
+
+           Type:
+             sign :: CacheList -> Installable -> Script
+        */
         push = caches: installable:
           [ "echo '--- :arrow_up: Push to binary cache'" ] ++ map (cache:
             "nix copy --to ${escapeShellArg cache} ${
@@ -73,11 +92,22 @@
           ] ++ optional (signWithKeys != [ ]) (sign signWithKeys installable)
             ++ optionals (pushToBinaryCaches != [ ]) push);
 
+        /* Generate a `nix develop ...` script that runs a given _command_ in a
+           specified _environment_.
+
+           Type:
+             runInEnv :: Environment -> Command -> Script
+        */
         runInEnv = environment: command:
           "nix develop ${escapeShellArg environment.drvPath} -c sh -c ${
             escapeShellArg command
           }";
 
+        /* Convert a given flake into a Pipeline representation.
+
+           Type:
+             flakeSteps' :: FlakeStepsConfig -> Flake -> PipelineSet
+        */
         flakeSteps' = { mkBuildCommands, signWithKeys, pushToBinaryCaches
           , buildArgs, systems, commonExtraStepConfig ? { }
           , reproduceRepo ? null }:
