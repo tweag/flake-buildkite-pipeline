@@ -20,17 +20,17 @@
           else
             "${description} (${name})";
       in rec {
-        /* Generate a JSON representation from a Steps attribute set.
+        /* Generate a JSON representation from a list of steps.
 
            Type:
-             mkPipeline :: Steps -> JSON
+             mkPipeline :: [a] -> b
         */
         mkPipeline = steps: builtins.toJSON { inherit steps; };
 
         /* Generate a _build_ step that will run `nix build ...`.
 
            Type:
-             build :: BuildConfigSet -> Installable -> Script
+             build :: AttrSet -> a -> String
         */
         build = { buildArgs ? [ ], reproducePath ? null, reproduceRepo ? null }:
           installable:
@@ -49,7 +49,7 @@
         /* Generate a _sign_ step that will sign a store path with `nix store sign ...`.
 
            Type:
-             sign :: SigningKey -> Installable -> Script
+             sign :: [a] -> b -> String
         */
         sign = keys: installable:
           [ "echo '--- :black_nib: Sign the paths'" ] ++ map (key:
@@ -60,7 +60,7 @@
         /* Generate a _push_ step that will push a store path to binary caches
 
            Type:
-             sign :: CacheList -> Installable -> Script
+             sign :: [a] -> b -> String
         */
         push = caches: installable:
           [ "echo '--- :arrow_up: Push to binary cache'" ] ++ map (cache:
@@ -96,7 +96,7 @@
            specified _environment_.
 
            Type:
-             runInEnv :: Environment -> Command -> Script
+             runInEnv :: a -> String -> String
         */
         runInEnv = environment: command:
           "nix develop ${escapeShellArg environment.drvPath} -c sh -c ${
@@ -106,7 +106,7 @@
         /* Convert a given flake into a Pipeline representation.
 
            Type:
-             flakeSteps' :: FlakeStepsConfig -> Flake -> PipelineSet
+             flakeSteps' :: AttrSet -> Flake -> [a]
         */
         flakeSteps' = { mkBuildCommands, signWithKeys, pushToBinaryCaches
           , buildArgs, systems, commonExtraStepConfig ? { }
