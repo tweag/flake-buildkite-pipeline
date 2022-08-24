@@ -55,7 +55,7 @@ Now, to get the actual BuildKite `pipeline.json`, run `nix eval --json
 combination with the BuildKite Agent CLI tool to upload the pipeline, e.g.
 
 ```shell
-nix eval "git+file://$(pwd)?submodules=1"#pipeline.buildkite --json | buildkite-agent pipeline upload
+nix eval .#pipelines.buildkite --json | buildkite-agent pipeline upload
 ```
 
 ### Functions reference
