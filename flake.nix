@@ -103,7 +103,7 @@
             escapeShellArg command
           }";
 
-        /* Convert a given flake into a Pipeline representation.
+         /* Generate a list of buildkite pipeline steps which build&test some of the flake's outputs.
 
            Type:
              flakeSteps' :: AttrSet -> Flake -> [a]
