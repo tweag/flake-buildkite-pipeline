@@ -1,10 +1,7 @@
 {
   description = "flake-buildkite-pipeline example";
 
-  inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-22.05";
-    flake-buildkite-pipeline.url = "github:tweag/flake-buildkite-pipeline";
-  };
+  inputs.flake-buildkite-pipeline.url = "github:tweag/flake-buildkite-pipeline";
 
   outputs = { self, nixpkgs, flake-buildkite-pipeline }:
     let
