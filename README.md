@@ -52,15 +52,17 @@ that it builds the `hello` package, and runs the singular check.
 Now, to get the actual BuildKite `pipeline.json`, run `nix eval --json
 .#pipelines.buildkite`. This will produce a valid BuildKite pipeline, the
 `--json` flag will print it out as JSON instead of Nix. You can use this in
-combination with the BuildKite Agent CLI tool to upload the pipeline, e.g.
+combination with the BuildKite Agent CLI tool to upload the pipeline. E.g. to
+use your own Nix flake with BuildKite, make sure the attribute
+`pipelines.buildkite.steps` gets defined in the flake's outputs. And then run
+the following command as a first step in the BuildKite pipeline.
 
 ```shell
 nix eval .#pipelines.buildkite --json | buildkite-agent pipeline upload
 ```
 
-### Functions reference
-
-`flakeSteps` 
+You can look at [the example flake][example-flake], and how we set it up on
+BuildKite.
 
 ## 👋 Hello from the Tweag team
 
@@ -79,3 +81,4 @@ more here][careers]!
 [website]: https://tweag.io/
 [blog]: https://tweag.io/blog
 [careers]: https://tweag.io/careers
+[example-flake]: ./examples/flake.nix
