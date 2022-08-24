@@ -52,10 +52,7 @@
       };
 
       pipelines.buildkite.steps = flake-buildkite-pipeline.lib.flakeSteps {
-        commonExtraStepConfig = {
-          agents = [ "nix" ];
-          plugins = [{ "thedyrt/skip-checkout#v0.1.1" = null; }];
-        };
+        commonExtraStepConfig = { agents = [ "nix" ]; };
       } self;
     };
 }
