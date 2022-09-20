@@ -1,0 +1,54 @@
+{
+  "nodes": {
+    "flake-buildkite-pipeline": {
+      "inputs": {
+        "nixpkgs-lib": "nixpkgs-lib"
+      },
+      "locked": {
+        "lastModified": 0,
+        "narHash": "sha256-PFpf42z9AUCS+K5vcSFYvSO6lPFcqDI1X4ppDthG94Y=",
+        "path": "/nix/store/nvyas6aglmns52j4szpc6kavrnqrbgwh-source",
+        "type": "path"
+      },
+      "original": {
+        "path": "/nix/store/nvyas6aglmns52j4szpc6kavrnqrbgwh-source",
+        "type": "path"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 0,
+        "narHash": "sha256-RtaVb6SqfrgCi20gdju1ogS3u1ocyLnhsgolazrCwL0=",
+        "path": "/nix/store/mrf1rcmvfwsgdcrcvgg06mfz12im6inf-source",
+        "type": "path"
+      },
+      "original": {
+        "id": "nixpkgs",
+        "type": "indirect"
+      }
+    },
+    "nixpkgs-lib": {
+      "locked": {
+        "lastModified": 1649551420,
+        "narHash": "sha256-J/Pn38rBZTszdtTHhhxroQaHADhd5TgbJ53F9j1WTIE=",
+        "owner": "nix-community",
+        "repo": "nixpkgs.lib",
+        "rev": "3a16841c57b0d3025b21b869cc921a119ce73033",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "nixpkgs.lib",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "flake-buildkite-pipeline": "flake-buildkite-pipeline",
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
