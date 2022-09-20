@@ -52,11 +52,11 @@
         };
       };
 
-      pipelines.buildkite = mkPipeline (flakeSteps {
+      pipelines.buildkite.steps = flakeSteps {
         commonExtraStepConfig = {
           agents = [ "nix" ];
           plugins = [{ "thedyrt/skip-checkout#v0.1.1" = null; }];
         };
-      } self);
+      } self;
     };
 }

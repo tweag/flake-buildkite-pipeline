@@ -5,17 +5,14 @@
         "nixpkgs-lib": "nixpkgs-lib"
       },
       "locked": {
-        "lastModified": 1656444434,
-        "narHash": "sha256-q3v+AOzwTtfxTngPmqlt2U9OLkW1LW51RKduQ8TSHdA=",
-        "owner": "tweag",
-        "repo": "flake-buildkite-pipeline",
-        "rev": "ecd0eeaab42124f4438a9b59caed0c9d2719aa0a",
-        "type": "github"
+        "lastModified": 0,
+        "narHash": "sha256-PFpf42z9AUCS+K5vcSFYvSO6lPFcqDI1X4ppDthG94Y=",
+        "path": "/nix/store/nvyas6aglmns52j4szpc6kavrnqrbgwh-source",
+        "type": "path"
       },
       "original": {
-        "owner": "tweag",
-        "repo": "flake-buildkite-pipeline",
-        "type": "github"
+        "path": "/nix/store/nvyas6aglmns52j4szpc6kavrnqrbgwh-source",
+        "type": "path"
       }
     },
     "nixpkgs": {
