@@ -1,12 +1,13 @@
 {
   description = "flake-buildkite-pipeline example";
 
-  inputs.flake-buildkite-pipeline.url = "github:tweag/flake-buildkite-pipeline";
+  inputs.flake-buildkite-pipeline.url = "..";
 
   outputs = { self, nixpkgs, flake-buildkite-pipeline }:
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
+      inherit (flake-buildkite-pipeline.lib) mkPipeline flakeSteps;
     in {
       packages.${system}.hello = pkgs.hello;
 
@@ -51,8 +52,11 @@
         };
       };
 
-      pipelines.buildkite.steps = flake-buildkite-pipeline.lib.flakeSteps {
-        commonExtraStepConfig = { agents = [ "nix" ]; };
-      } self;
+      pipelines.buildkite = mkPipeline (flakeSteps {
+        commonExtraStepConfig = {
+          agents = [ "nix" ];
+          plugins = [{ "thedyrt/skip-checkout#v0.1.1" = null; }];
+        };
+      } self);
     };
 }
