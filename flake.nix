@@ -23,15 +23,22 @@
         # [Step] -> JSON
         mkPipeline = steps: builtins.toJSON { inherit steps; };
 
-        build = { buildArgs ? [ ], reproducePath ? null, reproduceRepo ? null }:
+        build = { buildArgs ? [ ], reproducePath ? null, reproduceRepo ? null
+          , derivationCache ? null }:
           installable:
-          ''
+          lib.optional (!isNull derivationCache) ''
+            if [ ! -f ${escapeShellArg installable} ]; then
+              echo '--- :arrow_down: Copy the missing derivation from cache'
+              nix copy --from ${escapeShellArg derivationCache} ${
+                escapeShellArg installable
+              }
+            fi
+          '' ++ lib.singleton ''
             echo '--- :hammer: Realise the derivation'
             nix build ${escapeShellArg installable} -L -v ${
               concatMapStringsSep " " escapeShellArg buildArgs
             }
-          '' + lib.optionalString
-          (!isNull reproducePath && !isNull reproduceRepo) ''
+          '' ++ lib.optional (!isNull reproducePath && !isNull reproduceRepo) ''
             echo -e "To reproduce this result, run\n\e[1mgit checkout $BUILDKITE_COMMIT; nix build ${reproduceRepo}#${
               builtins.concatStringsSep "." reproducePath
             }\e[0m"
@@ -51,17 +58,18 @@
 
         buildSignPush = { buildArgs ? [ ], signWithKeys ? [ ]
           , pushToBinaryCaches ? [ ], reproducePath ? null, reproduceRepo ? null
-          }:
+          , derivationCache ? null }:
           installable:
-          concatStringsSep "\n" ([
-            (build { inherit buildArgs reproducePath reproduceRepo; }
-              installable)
-          ] ++ optionals (signWithKeys != [ ]) (sign signWithKeys installable)
+          concatStringsSep "\n" ((build {
+            inherit buildArgs reproducePath reproduceRepo derivationCache;
+          } installable)
+            ++ optionals (signWithKeys != [ ]) (sign signWithKeys installable)
             ++ optionals (pushToBinaryCaches != [ ])
             (push pushToBinaryCaches installable));
 
         buildPushCachix = { signWithKeys ? [ ], pushToBinaryCaches ? [ ]
-          , buildArgs ? [ ], reproducePath ? null, reproduceRepo ? null }:
+          , buildArgs ? [ ], reproducePath ? null, reproduceRepo ? null
+          , derivationCache ? null }:
           installable:
           let
             push = [ "echo '--- :arrow_up: Push to Cachix'" ]
@@ -80,7 +88,7 @@
 
         flakeSteps' = { mkBuildCommands, signWithKeys, pushToBinaryCaches
           , buildArgs, systems, commonExtraStepConfig ? { }
-          , reproduceRepo ? null }:
+          , reproduceRepo ? null, derivationCache ? null }:
           flake:
           let
             attrsToList = set:
@@ -102,7 +110,7 @@
                       if v.signPush then pushToBinaryCaches else [ ];
                     inherit buildArgs;
                     reproducePath = v.pkg.meta.reproducePath or null;
-                    inherit reproduceRepo;
+                    inherit reproduceRepo derivationCache;
                   } (v.pkg).drvPath;
                   label = v.label;
                   artifact_paths = pkg.value.passthru.artifacts or [ ];
@@ -164,12 +172,13 @@
 
         flakeSteps = { systems ? [ "x86_64-linux" ], reproduceRepo ? null
           , signWithKeys ? [ ], pushToBinaryCaches ? [ ], agents ? [ ]
-          , buildArgs ? [ ], commonExtraStepConfig ? { } }:
+          , buildArgs ? [ ], commonExtraStepConfig ? { }, derivationCache ? null
+          }:
           flakeSteps' {
             mkBuildCommands = buildSignPush;
 
             inherit reproduceRepo signWithKeys pushToBinaryCaches buildArgs
-              systems commonExtraStepConfig;
+              systems commonExtraStepConfig derivationCache;
           };
 
         flakeStepsCachix = { systems ? [ "x86_64-linux" ], reproduceRepo ? "."
@@ -180,6 +189,18 @@
             inherit reproduceRepo pushToBinaryCaches signWithKeys buildArgs
               systems commonExtraStepConfig;
           };
+
+        uploadPipeline = pipeline:
+          { derivationCache ? null }:
+          "buildkite-agent pipeline upload <<< ${
+            lib.escapeShellArg (__toJSON pipeline)
+          }${
+            lib.optionalString (!isNull derivationCache)
+            " | nix copy --to ${lib.escapeShellArg derivationCache} ${
+               lib.escapeShellArgs
+               (__attrNames (__getContext (__toJSON pipeline)))
+             }"
+          }";
       };
     };
 }
