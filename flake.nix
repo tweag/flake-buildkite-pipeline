@@ -31,7 +31,7 @@
               echo '--- :arrow_down: Copy the missing derivation from cache'
               nix copy --from ${escapeShellArg derivationCache} ${
                 escapeShellArg installable
-              }
+              } || echo "Failed, trying again"
             done
           '' ++ lib.singleton ''
             echo '--- :hammer: Realise the derivation'
