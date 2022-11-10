@@ -29,7 +29,7 @@
           lib.optional (!isNull derivationCache) ''
             while [ ! -f ${escapeShellArg installable} ]; do
               echo '--- :arrow_down: Copy the missing derivation from cache'
-              nix copy --from ${escapeShellArg derivationCache} ${
+              nix copy --derivation --from ${escapeShellArg derivationCache} ${
                 escapeShellArg installable
               } || sleep 5
             done
